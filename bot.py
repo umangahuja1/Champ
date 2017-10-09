@@ -1,11 +1,13 @@
+from pprint import pprint
 import requests
 import json
 from time import sleep
 from tele_news import *
 from tele_saavn import *
 from tele_temp import temp
+from tele_cricket import *
 
-token = 'your- access - token'
+token = 'your access token'
 url = 'https://api.telegram.org/bot{}/'.format(token)
 
 
@@ -32,8 +34,8 @@ def get_updates(offset = None):
 		except:
 			pass;
 	
-  
 def get_last(data):
+	
 	results = data['result']
 	count = len(results)
 	last = count -1
@@ -98,6 +100,7 @@ def reply_markup_maker(data):
 		except:
 			pass
 		keyboard.append(key)
+
 	reply_markup = {"keyboard":keyboard, "one_time_keyboard": True}
 	return json.dumps(reply_markup)
 
@@ -145,15 +148,18 @@ def saavn(chat_id,update_id):
 
 	if text =='Saavn Weekly Top':
 		message = ''
+
 		commands =['Hindi','English']
 		message = 'Select Language'
 		reply_markup = reply_markup_maker(commands)
 		send_message(chat_id,message,reply_markup)
-    
+
 		while text == 'Saavn Weekly Top':
 			chat_id,text,update_id= get_last_id_text(get_updates(update_id+1))	
 			sleep(0.5)
+
 		print(text)
+		
 		lang = text.lower()
 		songs = saavn_tops(lang)
 		for i,item in enumerate(songs,1):
@@ -161,8 +167,10 @@ def saavn(chat_id,update_id):
 			text = song[0]
 			if len(song)==2 and len(text + song[1])<30:
 				text += '('+song[1]
+				
 			message+= str(i)+". "+text +'\n\n'
 		send_message(chat_id,message)
+
 
 	elif text =='Hindi Chartbusters':
 		message = ''
@@ -184,6 +192,7 @@ def saavn(chat_id,update_id):
 			text = song[0]
 			if len(song)==2 and len(text + song[1])<30:
 				text += '('+song[1]
+			
 			message+= str(i)+". "+text +'\n\n'
 		send_message(chat_id,message)
 			
@@ -193,6 +202,34 @@ def weather(chat_id,update_id):
 	lat,lon,update_id = get_location(update_id)
 	message = temp(lat,lon)
 	send_message(chat_id, message)
+
+
+def cricket(chat_id,update_id):
+	message = 'Select'
+	commands = all_matches()
+	reply_markup = reply_markup_maker(commands)
+	send_message(chat_id,message,reply_markup)
+	chat_id,desc,update_id= get_last_id_text(get_updates(update_id+1))
+	print(desc)
+
+	commands =['Score','Full Scorecard','Commentary']
+	reply_markup = reply_markup_maker(commands)
+	send_message(chat_id,message,reply_markup)
+	chat_id,text,update_id= get_last_id_text(get_updates(update_id+1))	
+	print(text)	
+
+	if text.lower()=='score':
+		text = live_score(desc)
+		send_message(chat_id,text)
+
+	elif text.lower() == 'full scorecard':
+		text = scorecard(desc)
+		print(text)
+		send_message(chat_id,text)
+
+	elif text.lower() == 'commentary':
+		text = commentary(desc)
+		send_message(chat_id,text)
 
 
 def welcome_note(chat_id, commands):
@@ -207,10 +244,12 @@ def start(chat_id):
 	message = 'Wanna Start'	
 	reply_markup = reply_markup_maker(['Start'])
 	send_message(chat_id,message,reply_markup)
+	
 	chat_id,text,update_id= get_last_id_text(get_updates())	
 	while(text.lower() != 'start'):
 		chat_id,text,update_id= get_last_id_text(get_updates(update_id+1))	
 		sleep(0.5)
+
 	return chat_id,text,update_id
 
 
@@ -218,10 +257,12 @@ def end(chat_id,text,update_id):
 	message = 'Do you wanna end?'
 	reply_markup = reply_markup_maker(['Yes','No'])
 	send_message(chat_id,message,reply_markup)
+	
 	new_text =text
 	while(text == new_text):
 		chat_id,new_text,update_id= get_last_id_text(get_updates(update_id+1))	
 		sleep(1)
+
 	if new_text =='Yes':
 		return 'y'
 	else:
@@ -229,8 +270,10 @@ def end(chat_id,text,update_id):
 
 
 def menu(chat_id,text,update_id):
+
 	commands = ['news','weather','cricket','saavn']
 	welcome_note(chat_id, commands)
+	
 	while( text.lower() =='start'):
 		chat_id,text,update_id= get_last_id_text(get_updates(update_id+1))	
 		sleep(0.5)
@@ -238,7 +281,7 @@ def menu(chat_id,text,update_id):
 	while text.lower() not in commands:
 		chat_id,text,update_id= get_last_id_text(get_updates(update_id+1))	
 		sleep(0.5)
-    
+
 	if text.lower()=='news':
 		news(chat_id,update_id)
 
@@ -247,6 +290,9 @@ def menu(chat_id,text,update_id):
 
 	elif text.lower()=='weather':
 		weather(chat_id,update_id)
+
+	elif text.lower()=='cricket':
+		cricket(chat_id,update_id)
 
 
 def main():
@@ -260,6 +306,7 @@ def main():
 		text = 'start'
 		menu(chat_id,text,update_id)
 		text ='y'
+	
 		chat_id,text,update_id= get_last_id_text(get_updates())	
 		text = end(chat_id,text,update_id)
 	
